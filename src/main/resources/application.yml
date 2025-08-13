@@ -10,3 +10,19 @@ spring:
       ddl-auto: update
     show-sql: true
     database-platform: org.hibernate.dialect.MySQL8Dialect
+
+  mvc:
+    problemdetails:
+      enabled: true
+
+server:
+  port: 8080
+  error:
+    include-message: never
+    include-binding-errors: never
+
+app:
+  jwt:
+    secret: "0123456789_0123456789_0123456789_0123456789_012345"
+    access-exp-min: 30      # 访问令牌 30 分钟
+    refresh-exp-days: 7     # 刷新令牌 7 天
