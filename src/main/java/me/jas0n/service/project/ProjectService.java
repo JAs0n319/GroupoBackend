@@ -5,6 +5,7 @@ import me.jas0n.common.text.Slugs;
 import me.jas0n.domain.project.*;
 import me.jas0n.repository.project.ProjectMemberRepository;
 import me.jas0n.repository.project.ProjectRepository;
+import me.jas0n.web.project.ProjectMapper;
 import me.jas0n.web.project.dto.CreateProjectRequest;
 import me.jas0n.web.project.dto.ProjectResponse;
 import org.springframework.data.domain.Page;
@@ -143,5 +144,18 @@ public class ProjectService {
                 .map(ProjectMember::getRole)
                 .min(Comparator.comparingInt(ProjectRole::ordinal))
                 .orElse(null);
+    }
+
+    public Page<ProjectResponse> listMyProjects(UUID uid,
+                                                Optional<String> q,
+                                                Optional<List<ProjectStatus>> statuses,
+                                                Pageable pageable) {
+        var rows = members.findMyProjects(
+                uid,
+                q.filter(s -> !s.isBlank()).orElse(null),
+                statuses.filter(l -> !l.isEmpty()).orElse(null),
+                pageable
+        );
+        return rows.map(r -> ProjectMapper.toResponse(r.getProject()));
     }
 }

@@ -7,11 +7,13 @@ import me.jas0n.service.project.ProjectService;
 import me.jas0n.web.project.dto.CreateProjectRequest;
 import me.jas0n.web.project.dto.ProjectResponse;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @RestController
@@ -59,6 +61,21 @@ public class ProjectController {
         UUID uid = CurrentUser.idOrThrow();
         projects.restore(id, uid);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/my")
+    public Page<ProjectResponse> myProjects(
+            @RequestParam(name = "q", required = false) String q,
+            @RequestParam(name = "status", required = false) List<ProjectStatus> statuses,
+            Pageable pageable
+    ) {
+        UUID uid = CurrentUser.idOrThrow();
+        return projects.listMyProjects(
+                uid,
+                Optional.ofNullable(q),
+                Optional.ofNullable(statuses),
+                pageable
+        );
     }
 
 }
