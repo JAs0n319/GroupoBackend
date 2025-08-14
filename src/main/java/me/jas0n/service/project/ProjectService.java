@@ -118,14 +118,30 @@ public class ProjectService {
     }
 
     @Transactional
+    public void pause(UUID id, UUID currentUserId) {
+        Project p = projects.findByIdAndDeletedAtIsNull(id)
+                .orElseThrow(() -> new BusinessException("PROJECT_NOT_FOUND", "项目不存在", HttpStatus.NOT_FOUND));
+
+        ProjectRole highest = getHighestRole(id, currentUserId);
+        if ((highest != ProjectRole.OWNER && highest != ProjectRole.MANAGER)) {
+            throw new BusinessException("NO_PERMISSION", "无权限执行此操作", HttpStatus.FORBIDDEN);
+        }
+
+        if (p.getStatus() != ProjectStatus.PAUSED) {
+            p.setStatus(ProjectStatus.PAUSED);
+            p.setLastActivityAt(Instant.now());
+        }
+    }
+
+    @Transactional
     public void restore(UUID id, UUID currentUserId) {
         Project p = projects.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new BusinessException("PROJECT_NOT_FOUND", "项目不存在", HttpStatus.NOT_FOUND));
-        if (p.getStatus() == ProjectStatus.ARCHIVED) {
+        if (p.getStatus() != ProjectStatus.ONGOING) {
             p.setStatus(ProjectStatus.ONGOING);
             p.setLastActivityAt(Instant.now());
         } else {
-            throw new BusinessException("INVALID_STATUS_TRANSITION", "仅已归档可恢复", HttpStatus.BAD_REQUEST);
+            throw new BusinessException("INVALID_STATUS_TRANSITION", "进行中的项目不可被恢复", HttpStatus.BAD_REQUEST);
         }
     }
 
@@ -139,7 +155,7 @@ public class ProjectService {
             return null; // 说明不是成员
         }
 
-        // 返回权限最高的那个（枚举 ordinal 小的等级最高）
+        // 返回权限最高的那个
         return roles.stream()
                 .map(ProjectMember::getRole)
                 .min(Comparator.comparingInt(ProjectRole::ordinal))
@@ -157,5 +173,32 @@ public class ProjectService {
                 pageable
         );
         return rows.map(r -> ProjectMapper.toResponse(r.getProject()));
+    }
+
+    @Transactional
+    public void delete(UUID id, UUID currentUserId) {
+        if (currentUserId == null) {
+            throw new BusinessException("UNAUTHORIZED", "未登录或凭证无效", HttpStatus.UNAUTHORIZED);
+        }
+
+        // 只查未删除的
+        Project p = projects.findByIdAndDeletedAtIsNull(id)
+                .orElseThrow(() -> new BusinessException("PROJECT_NOT_FOUND", "项目不存在", HttpStatus.NOT_FOUND));
+
+        // 权限：OWNER 或 MANAGER 才能删除
+        ProjectRole highest = getHighestRole(id, currentUserId);
+        if (highest != ProjectRole.OWNER && highest != ProjectRole.MANAGER) {
+            throw new BusinessException("NO_PERMISSION", "无权限执行此操作", HttpStatus.FORBIDDEN);
+        }
+
+        // 业务约束：仅允许删除已归档的项目（避免误删）
+        if (p.getStatus() != ProjectStatus.ARCHIVED) {
+            throw new BusinessException("ONLY_ARCHIVED_DELETABLE", "仅已归档的项目可删除", HttpStatus.BAD_REQUEST);
+        }
+
+        // 软删除
+        p.setDeletedAt(Instant.now());
+        p.setLastActivityAt(Instant.now());
+        // 如需同时移除成员关系，可在此调用 members.* 批量删除（可选）
     }
 }

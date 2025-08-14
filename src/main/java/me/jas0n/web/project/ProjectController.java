@@ -1,5 +1,6 @@
 package me.jas0n.web.project;
 
+import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import me.jas0n.domain.project.ProjectStatus;
 import me.jas0n.security.CurrentUser;
@@ -16,6 +17,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+
 @RestController
 @RequestMapping("/api/v1/projects")
 public class ProjectController {
@@ -27,6 +29,7 @@ public class ProjectController {
     }
 
     @PostMapping
+    @Operation(summary = "创建项目")
     public ResponseEntity<ProjectResponse> create(@Valid @RequestBody CreateProjectRequest req) {
         UUID uid = CurrentUser.idOrThrow();
         ProjectResponse body = projects.create(req, uid);
@@ -35,6 +38,7 @@ public class ProjectController {
     }
 
     @GetMapping
+    @Operation(summary = "获取项目列表")
     public Page<ProjectResponse> list(
             @RequestParam(name = "status", required = false) List<ProjectStatus> statusList,
             org.springframework.data.domain.Pageable pageable
@@ -45,18 +49,29 @@ public class ProjectController {
     }
 
     @GetMapping("/{id}")
+    @Operation(summary = "获取项目详情")
     public ProjectResponse get(@PathVariable UUID id) {
         return projects.get(id);
     }
 
     @PostMapping("/{id}/archive")
+    @Operation(summary = "归档项目")
     public ResponseEntity<Void> archive(@PathVariable UUID id) {
         UUID uid = CurrentUser.idOrThrow();
         projects.archive(id, uid);
         return ResponseEntity.noContent().build();
     }
 
+    @PostMapping("/{id}/pause")
+    @Operation(summary = "暂停项目")
+    public ResponseEntity<Void> pause(@PathVariable UUID id) {
+        UUID uid = CurrentUser.idOrThrow();
+        projects.pause(id, uid);
+        return ResponseEntity.noContent().build();
+    }
+
     @PostMapping("/{id}/restore")
+    @Operation(summary = "恢复项目")
     public ResponseEntity<Void> restore(@PathVariable UUID id) {
         UUID uid = CurrentUser.idOrThrow();
         projects.restore(id, uid);
@@ -64,6 +79,7 @@ public class ProjectController {
     }
 
     @GetMapping("/my")
+    @Operation(summary = "获取个人项目页面")
     public Page<ProjectResponse> myProjects(
             @RequestParam(name = "q", required = false) String q,
             @RequestParam(name = "status", required = false) List<ProjectStatus> statuses,
@@ -76,6 +92,14 @@ public class ProjectController {
                 Optional.ofNullable(statuses),
                 pageable
         );
+    }
+
+    @DeleteMapping("/{id}")
+    @Operation(summary = "删除项目")
+    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+        UUID uid = CurrentUser.idOrThrow();
+        projects.delete(id, uid);
+        return ResponseEntity.noContent().build(); // 204
     }
 
 }
